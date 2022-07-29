@@ -1,38 +1,66 @@
-const express = require('express')
-const app = express()
-const multer = require('multer')
-const path = require('path')
-const port = 5000
-
+const express = require("express");
+const app = express();
+const multer = require("multer");
+const path = require("path");
+const port = 5000;
 
 const fileStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads')
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-        cb(null, file.originalname + '-' + uniqueSuffix + '.jpg')
-    }
-})
+  destination: (req, file, cb) => {
+    cb(null, "uploads");
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, file.originalname + "-" + uniqueSuffix + ".jpg");
+  },
+});
 
-const upload = multer({ storage: fileStorage })
+const isPicture = (name, mimetype) => {
+  return (
+    (name.match(/\.(jpg|JPG|jpeg|JPEG|png|PNG)$/) && mimetype == "image/png") ||
+    mimetype == "image/jpg" ||
+    mimetype == "image/jpeg"
+  );
+};
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'))
-})
+const fileFilter = (req, file, cb) => {
+  const { originalname, mimetype } = file;
+  if (!isPicture(originalname, mimetype)) {
+    req.fileValidationError = "Please Pictures Only";
+    return cb("Please Pictures Only", false);
+  }
+  cb(null, true);
+};
 
-app.post('/upload-profile', upload.single('profile_pic') ,(req, res) => {
-    res.send(`<h2>Here is the picture:</h2><img src="http://localhost:5000/uploads/${req.file.filename}" alt="something" width="600"/>`)
-})
+const upload = multer({ storage: fileStorage, fileFilter });
 
-app.use('/uploads', express.static('uploads'));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 
+app.post("/upload-profile", upload.single("profile_pic"), (req, res) => {
+  const { file, fileValidationError } = req;
 
+  if (fileValidationError) {
+    return res.status(500).send(fileValidationError);
+  }
+
+  if (!file) {
+    return res.status(400).send("Please upload a file");
+  }
+  res.send(
+    `<h2>Here is the picture:</h2><img src="http://localhost:5000/uploads/${req.file.filename}" alt="something" width="600"/>`
+  );
+});
+
+app.post("/upload-cat-pics", upload.array("cat_pics", 10), (req, res, next) => {
+  console.log(req.files);
+  res.send(
+    `<h2>Here are the pictures:</h2><img src="http://localhost:5000/uploads/${req.files.filename}" alt="something" width="600"/>`
+  );
+});
+
+app.use("/uploads", express.static("uploads"));
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
-
-
-
-//WhatsApp Image 2022-04-01 at 9.08.39 AM.jpeg-1659086621355-338729442
+  console.log(`Example app listening on port ${port}`);
+});
